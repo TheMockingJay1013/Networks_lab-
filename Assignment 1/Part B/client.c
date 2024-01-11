@@ -82,6 +82,7 @@ int main()
             }
             else 
             {
+                buffer[strlen(buffer)-1]='\0';
                 fputs(buffer,fp);
                 fputs("\n",fp);
             }

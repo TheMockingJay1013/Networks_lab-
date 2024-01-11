@@ -62,10 +62,10 @@ int main()
     }
     printf("FILE FOUND!\n");
 
-    fscanf(fp,"%s",buffer);
-    fgets(buffer2,1024,fp);
+    // fscanf(fp,"%s",buffer);
+    fgets(buffer,1024,fp);
     int l = strlen(buffer);
-    buffer[l]='\0';
+    buffer[l-1]='\0';
 
     int d =sendto(servsock,(char *)buffer,l,0,&cliaddr,sizeof(cliaddr));
 
@@ -73,9 +73,8 @@ int main()
     while(1)
     {
         int q =recvfrom(servsock,(char *)buffer,MAXLINE,0,(struct sockaddr *)&cliaddr,&len);
-        fscanf(fp,"%s",buffer);
-        fgets(buffer2,MAXLINE,fp);
-        int l = strlen(buffer);
+        fgets(buffer,MAXLINE,fp);
+        l = strlen(buffer);
 
         sendto(servsock,(char *)buffer,l,0,&cliaddr,sizeof(cliaddr));
         if(strcmp(buffer,"END")==0)
