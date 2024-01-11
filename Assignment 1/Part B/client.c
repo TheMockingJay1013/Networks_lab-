@@ -32,7 +32,7 @@ int main()
     }
 
     cliaddr.sin_family=AF_INET;
-    cliaddr.sin_addr.s_addr = INADDR_ANY;
+    cliaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     cliaddr.sin_port = htons(6543);
 
     if(bind(clisock,(const struct sockaddr *)&cliaddr,sizeof(cliaddr))<0)
@@ -46,6 +46,7 @@ int main()
     servaddr.sin_family = AF_INET ;
     servaddr.sin_port = htons(8181);
     err = inet_aton("127.0.0.1",&servaddr.sin_addr);
+    len = sizeof(servaddr);
     if(err == 0)
     {
         printf("Error in ip-conversion\n");
@@ -54,35 +55,36 @@ int main()
 
     sendto(clisock,(const char *)filename,strlen(filename),0,(const struct sockaddr *)&servaddr,sizeof(servaddr));
     int t;
-    if((t =recvfrom(clisock,(char *)buffer,1024,0,(struct sockaddr *)&servaddr,sizeof(servaddr)))<0)printf("ERROR while receiving hello %d\n",t);
-    char hel[] = "HELLO";
-    printf("%d\n",t);
-    buffer[5]='\0';
-    printf("t = %d ,buffer = %s , %d\n triea",t,buffer,strlen(buffer));
+    if((t = recvfrom(clisock,(char *)buffer,1024,0,(struct sockaddr *)&servaddr,&len))<0)printf("ERROR while receiving hello %d\n",t);
+    char * hel = "HELLO";
+    buffer[t]='\0';
+    // printf("hel = %s %d, buffer = %s %d, weird",hel,strlen(hel),buffer,strlen(buffer));
     
     if(strcmp(buffer,hel)==0)
     {
-        printf("HELLO FOUND");
         int i=0;
         char word[] = "WORD ";
         int wordlen = strlen(word);
-        FILE * fp = fopen("new.txt","a");
+        FILE * fp = fopen("new.txt","w");
 
         while(1)
         {   
             i++;
-            word[wordlen-2]=i+'0';
+            word[wordlen-1]=i+'0';
 
             sendto(clisock,(const char*)word,wordlen,0,(const struct sockaddr *)&servaddr,sizeof(servaddr));
-            recvfrom(clisock,(char *)buffer,1024,0,(struct sockaddr *)&servaddr,sizeof(servaddr));
-
+            if((t = recvfrom(clisock,(char *)buffer,1024,0,(struct sockaddr *)&servaddr,&len))<0)printf("error while receiving\n");
+            buffer[t] = '\0';
             if(strcmp(buffer,"END")==0)
             {
                 fclose(fp);
                 break;
             }
             else 
+            {
                 fputs(buffer,fp);
+                fputs("\n",fp);
+            }
 
 
         }
@@ -90,6 +92,8 @@ int main()
     }
     else printf("HELLO NOT READ\n");
     close(clisock);
+
+    printf("The file contents are copied to new.txt\n");
     return 0;
 
 

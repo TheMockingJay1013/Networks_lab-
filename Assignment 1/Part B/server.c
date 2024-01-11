@@ -27,12 +27,13 @@ int main()
     int n;
     socklen_t len;
     char buffer[MAXLINE];
+    char buffer2[MAXLINE];
 
     memset(&servaddr,0,sizeof(servaddr));
     memset(&cliaddr,0,sizeof(cliaddr));
 
     servaddr.sin_family = AF_INET ;
-    servaddr.sin_addr.s_addr = INADDR_ANY;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port = htons(8181);
 
     if(bind(servsock,(const struct sockaddr *)&servaddr,sizeof(servaddr))<0)
@@ -48,7 +49,6 @@ int main()
     FILE * fp;
     const char *x = buffer;
     buffer[n]='\0';
-    printf("%s\n",buffer);
 
     fp = fopen(x,"r");
     if(fp==NULL)
@@ -62,26 +62,30 @@ int main()
     }
     printf("FILE FOUND!\n");
 
-    fgets(buffer,sizeof(buffer),fp);
+    fscanf(fp,"%s",buffer);
+    fgets(buffer2,1024,fp);
     int l = strlen(buffer);
     buffer[l]='\0';
-    printf("The first word read from file is %s length is ",buffer,l);
 
     int d =sendto(servsock,(char *)buffer,l,0,&cliaddr,sizeof(cliaddr));
+
+
     while(1)
     {
         int q =recvfrom(servsock,(char *)buffer,MAXLINE,0,(struct sockaddr *)&cliaddr,&len);
-        fgets(buffer,sizeof(buffer),fp);
+        fscanf(fp,"%s",buffer);
+        fgets(buffer2,MAXLINE,fp);
         int l = strlen(buffer);
 
         sendto(servsock,(char *)buffer,l,0,&cliaddr,sizeof(cliaddr));
-        if(strcmp(buffer,"END"))
+        if(strcmp(buffer,"END")==0)
         {
             break;
         }
     }
 
     close(servsock);
+    printf("DONE!!\n");
     return 0;
     
 
