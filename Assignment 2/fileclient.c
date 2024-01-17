@@ -11,7 +11,7 @@
 int main()
 {
     int clisock ;
-    struct sockaddr_in serv_addr , cli_addr ;
+    struct sockaddr_in serv_addr , cliaddr ;
 
     int i ;
     char buf[100] ;
@@ -26,14 +26,15 @@ int main()
     // binding the client (optional in this case)
 
 
+
     // server info 
     serv_addr.sin_family = AF_INET ;
     inet_aton("127.0.0.1",&serv_addr.sin_addr);
     serv_addr.sin_port = htons(20000);
 
     // reading from file
-    int k;
-    char filename[1024];
+    int k=2;
+    char filename[1024] = "trial.txt";
 
     int f;
 
@@ -60,34 +61,45 @@ int main()
 
     // first send the key value to the server
     buf[0] = '0'+k;
-    buf[1] = '\0';
-    send(clisock,buf,strlen(buf)+ 1,0);
+    // buf[1] = '\0';
+    send(clisock,buf,1,0);
 
     // start reading from file and sending it 
     int n = -1;
 
-    // while(1)
-    // {
-    //     n = read(f,buf,100);
-    //     if(n==0)
-    //     {
-    //         break;
-    //     }
-    //     buf[n] = '\0';
-
-    //     // printf("%s,%lu\n",buf,strlen(buf));
-
-    //     // send(clisock,buf,n+1,0);
-
-
-    // }
-
-    n = read(f,buf,100);
-    buf[n] = '\0';
-    send(clisock,buf,strlen(buf)+1,0);
+    while(n!=0)
+    {
+        n = read(f,buf,100);
+        send(clisock,buf,n,0);
+        
+    }
+    printf("Sent file from client to server\n");
+    close(f); // closing the file 
 
     // client receives the encrypted file from the server ans stores in new file
 
+    f = open("encrypted.txt.enc",O_RDWR|O_CREAT);
+    if(f<0)
+    {
+        perror("Unable to create file");
+        exit(0);
+    }
+
+
+    char buf2[100]={'\0'};
+    while(1)
+    {
+        int len  = recv(clisock,buf2,100,0);
+        buf2[len]='\0';
+
+        write(f,buf2,len);
+        // printf("%s",buf2);
+        if(len<100)break;
+        memset(buf2,'\0',sizeof(buf2));
+    }
+
+    printf("File received and stored in encrypted.txt.enc\n");
+    close(f);
     // print client message
 
     // looping this process indefinitely
