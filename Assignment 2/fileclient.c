@@ -73,6 +73,8 @@ int main()
         send(clisock,buf,n,0);
         
     }
+    buf[0]='#';
+    send(clisock,buf,1,0);
     printf("Sent file from client to server\n");
     close(f); // closing the file 
 
@@ -85,24 +87,29 @@ int main()
         exit(0);
     }
 
-
-    char buf2[100]={'\0'};
+    int end = 0;
+    int sz;
     while(1)
     {
-        int len  = recv(clisock,buf2,100,0);
-        buf2[len]='\0';
-
-        write(f,buf2,len);
-        // printf("%s",buf2);
-        if(len<100)break;
-        memset(buf2,'\0',sizeof(buf2));
+        int len  = recv(clisock,buf,100,0);
+        for(int i=0;i<len;i++)
+        {
+            if(buf[i]=='#')
+            {
+                end = 1 ;
+                len = i;
+                break;
+            }
+        }
+        sz = write(f,buf,len);
+        if(end)break;
+        memset(buf,'\0',sizeof(buf));
     }
+    write(f,"\0",1);
 
     printf("File received and stored in encrypted.txt.enc\n");
     close(f);
-    // print client message
-
-    // looping this process indefinitely
+    close(clisock);
 
 
 

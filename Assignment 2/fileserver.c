@@ -7,12 +7,13 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <signal.h>
 
+int servsock , newsock ;
 
 
 int main()
 {
-    int servsock , newsock ;
 
     socklen_t clilen; 
     struct sockaddr_in cliaddr , servaddr ;
@@ -44,6 +45,8 @@ int main()
 
     while(1)
     {
+        printf("waiting .. \n");
+
         clilen = sizeof(cliaddr);
         newsock = accept(servsock,(struct sockaddr *)&cliaddr,&clilen);
 
@@ -73,14 +76,23 @@ int main()
                 printf("unable to open foo.txt\n");
             }
             int sz;
-            printf("checking\n");
+            long long length=0;
+            int end = 0 ;
             while(1)
             {
                 len = recv(newsock,buf,100,0);
-                buf[len]='\0';
-                // printf("%s",buf);
+                for(int i=0;i<len;i++)
+                {
+                    if(buf[i]=='#')
+                    {
+                        end = 1;
+                        len = i+1;
+                        break;
+                    }
+                }
                 sz = write(fd,buf,len);
-                if(len<100)break;
+                if(end)break;
+                memset(buf,'$',sizeof(buf));
             }
             write(fd,"\0",1);
 
@@ -90,7 +102,7 @@ int main()
             // now reading from the file ,ecrypting it and storing it enc.txt
             fd = open("foo.txt",O_RDONLY);
 
-            int f2 = open("enc.txt",O_RDWR|O_CREAT);
+            int f2 = open("foo.txt.enc",O_RDWR|O_CREAT);
             if(f2<0)
             {
                 printf("unable to open enc.txt\n");
@@ -119,19 +131,18 @@ int main()
                 sz = write(f2,buf,n);
             }   
             close(f2);
-            printf("File encrypted and stored in enc.txt\n");
             close(fd);
 
             // sending the encrypted file to the client
-            char buf2[100]={'\0'};
-            f2 = open("enc.txt",O_RDONLY);
-            while(1)
+            f2 = open("foo.txt.enc",O_RDONLY);
+            n=-1;
+            while(n!=0)
             {
-                if ((n=read(f2,buf2,100))<=0) break;
-                // printf("%s",buf2);
-                send(newsock,buf2,n,0);
+                n=read(f2,buf,100);
+                send(newsock,buf,n,0);
             }
 
+            printf("\nThe file has been encrypted and sent back to client\n");
             close(newsock);
             exit(0);
         }
