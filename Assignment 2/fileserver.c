@@ -9,12 +9,12 @@
 #include <fcntl.h>
 #include <signal.h>
 
-int servsock , newsock ;
 
 
 int main()
 {
 
+    int servsock , newsock ;
     socklen_t clilen; 
     struct sockaddr_in cliaddr , servaddr ;
 
@@ -70,6 +70,9 @@ int main()
             k = atoi(buf);
             int i=0;
 
+            char filename[1024];
+            sprintf(filename,"%s.%d.txt",inet_ntoa(cliaddr.sin_addr),ntohs(cliaddr.sin_port));
+
             int fd = open("foo.txt", O_RDWR|O_CREAT);
             if(fd<0)
             {
@@ -100,7 +103,7 @@ int main()
             close(fd);
 
             // now reading from the file ,ecrypting it and storing it enc.txt
-            fd = open("foo.txt",O_RDONLY);
+            fd = open("foo.txt",O_RDWR);
 
             int f2 = open("foo.txt.enc",O_RDWR|O_CREAT);
             if(f2<0)
@@ -111,13 +114,17 @@ int main()
 
             int n = -1;
 
-
+            end = 0;
             while(1)
             {
                 n = read(fd,buf,100);
                 if(n==0)break;
                 for(int i=0;i<n;i++)
                 {
+                    if(buf[i]=='#')
+                    {
+                        end = 1;
+                    }
                     if(buf[i]>='a' && buf[i]<='z')
                     {
                         buf[i] = (buf[i]-'a'+k)%26 + 'a';
@@ -129,12 +136,13 @@ int main()
                 }
                 // printf("%s",buf,n);
                 sz = write(f2,buf,n);
+                if(end)break;
             }   
             close(f2);
             close(fd);
 
             // sending the encrypted file to the client
-            f2 = open("foo.txt.enc",O_RDONLY);
+            f2 = open("foo.txt.enc",O_RDWR);
             n=-1;
             while(n!=0)
             {
