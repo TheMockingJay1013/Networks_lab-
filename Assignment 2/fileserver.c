@@ -71,6 +71,7 @@ int main()
                 printf("waiting .. \n");
                 int len = -1;
                 len = recv(newsock,buf,1,0);
+                if(len==0)break;
                 k = atoi(buf);
                 int i=0;
 
@@ -159,6 +160,7 @@ int main()
 
                 printf("\nThe file has been encrypted and sent back to client\n");
             }
+            printf("Client %s with port : %d disconnected\n" , inet_ntoa(cliaddr.sin_addr),ntohs(cliaddr.sin_port));
             close(newsock);
             exit(0);
         }
