@@ -1,0 +1,157 @@
+List of data structures and functions used in initmsocket.c, msocket.c, and msocket.h
+
+Structures defined in msocket.h
+
+1. SOCK_INFO                // structure to hold socket and bind calls information
+
+    - int sock_id;          // socket id for socket
+    - long ip;              // ip address for bind
+    - int port;             // port number for bind
+    - int errnum;           // error number set if error occurs
+
+2. SM                       // the shared memory structure
+
+    - int alloted;          // flag to check if shared memory is alloted(1) or free(0)
+    - pid_t pid;            // process id of the process that alloted the shared memory
+    - int mtp_id;           // mtp socket id
+    - int udp_id;           // udp socket id
+    - long ip;              // ip address of the port
+    - int port;             // port number
+    - msg sendbuffer[10];   // send buffer with 10 msg slots, msg is a structure to store char[1024]
+    - int last_seq;         // last sequence number put in the send buffer
+    - int sendbuffer_in;    // index to put the next message in the send buffer, by the application
+    - int sendbuffer_out;   // index to get the next message from the send buffer, by the thread
+    - msg recvbuffer[5];    // receive buffer with 5 msg slots, msg is a structure to store char[1024]
+    - int recvbuffer_in;    // index to put the next message in the receive buffer, by the thread
+    - int recvbuffer_out;   // index to get the next message from the receive buffer, by the application
+    - window swnd;          // send window
+    - window rwnd;          // receive window
+    - int nospace;          // flag to indicate that there is no space in the receive buffer
+    - int flag;             // flag to indicate that the receive buffer was full, but now m_recvfrom has created some space
+    - exp_seq               // tells the recvfrom call what the next sequence number it is expecting
+    - transmission_cnt      // gives the count of the number of transmissions (sendto calls for data messages) made by S thread
+
+3. msg                      // structure to store char[1024]
+
+    - char text[1024];      // message to be sent or received
+
+
+4. window                   // structure to store window information
+
+    - int window_size;      // useful for the sender to know how much space is there in receiver buffer
+    - int array[15];        // array to store the postion of the buffers wrt the 
+    - int left;             // left pointer of the window
+    - int middle;           // middle pointer of the window
+    - int right;            // right pointer of the window
+
+Structures defined in initmsocket.c
+
+1. int new_bind[25]         // array to store if the socket is newly bound, so that the R thread can add it to fd_set
+
+2. time_t last_msg[25][15]  // array to store the time of the message sent, to detect timeout and retransmit
+
+3. char header[9]           // char array to store the header of the message, which contains the sequence number and the type of the message
+
+4. char message[1024]       // char array to store the actual data message received
+
+5. struct sockaddr_in server// structure to store the server address
+
+    - sin_family            // address family
+    - sin_port              // port number
+    - sin_addr              // ip address in s_addr
+
+6. char ackm[9]             // char array to store the ack message to be sent
+
+7. char incaseitdropsheader[9] // char array to store the header of the message, incase it is dropped, so that we get to know the sequence number
+
+List of functions implemented in msocket.c
+
+1. int m_socket(int domain, int type, int protocol)
+// creates an mtp socket and returns the mtp socket id
+// takes in the domain, type, and protocol of the udp socket to be created
+// initializes the shared memory and the send and receive buffers
+// if error occurs, set the error number
+
+2. int m_bind(int sock, long s_ip, int s_port, long d_ip, int d_port)
+// binds the mtp socket
+// first find whether the socket is created or not
+// pass the source ip, source port and udp id so that the initmsocket can bind the udp socket
+// add the respective entries of the socket in the shared memory
+// if error occurs, set the error number
+
+3. int m_sendto(int sock, char *buf, int len, int flags, long d_ip, int d_port)
+// adds the message to the send buffer
+// check the socket id, if it is not created, set the error number
+// first check if the destination ip and port are valid, else return with error ENOTBOUND
+// if the send buffer is full, immediately return with error set as ENOBUFS
+// put the message in the send buffer and update the sendbuffer_in index appropriately
+
+4. int m_recvfrom(int sock, char *buf, int len, int flags, long s_ip, int s_port)
+// gets the message from the receive buffer
+// check the socket id, if it is not created, set the error number
+// first check if the source ip and port are valid, else return with error ENOTBOUND
+// if the receive buffer is empty, immediately return with error set as ENOMSG
+// get the message from the receive buffer and update the receivebuffer_out index appropriately
+
+5. int m_close(int sock)
+// closes the mtp socket
+// check the socket id, if it is not created, set the error number
+// free the shared memory and the send and receive buffers
+// not called in the application, as the garbage collector thread will take care of it
+
+6. int dropMessage(float p)
+// drops the message with probability p
+// returns 1 if the message is to be dropped, else returns 0
+
+List of functions implemented in initmsocket.c
+
+1. void removeall()
+// removes all the shared memory and the semaphores
+// done before the R thread, S thread, or the main thread exit
+
+2. void signal_handler(int signum)
+// signal handler for SIGINT and SIGTSTP
+// calls removeall to remove all the shared memory and the semaphores
+
+3. void *R(void)
+// the receiver thread
+// receives the message from the udp socket and puts it in the receive buffer
+// receives the ack message from the udp socket and updates the send window as well
+// sends the ack message to the sender
+
+4. void *S(void)
+// the sender thread
+// periodically checks the send window and retransmits the message if timeout occurs
+// else sends the new message from the send buffer
+
+5. void *G(void)
+// the garbage collector thread
+// checks all the entries that are allocated to some process and if the process is not alive, frees the shared memory and the send and receive buffers
+// uses a kill system call to check if the process is alive or not
+// also removes the socket from the fd_set
+
+6. int main()
+// the main function of the initmsocket
+// creates the shared memory and the semaphores
+// creates the receiver, sender, and garbage collector threads
+// makes the udp socket and binds it to the port after being signalled by the m_socket and m_bind functions
+
+Table of time taken and average transmission count for different values of p
+
+|------|--------------------------|----------------------------|
+| p    | Time taken               | Average transmission count |
+|------|--------------------------|----------------------------|
+| 0.00 | 2m44.755s                | 0.998378                   |
+| 0.05 | 3m12.209s                | 1.116564                   |
+| 0.10 | 3m42.811s                | 1.245399                   |
+| 0.15 | 4m18.680s                | 1.374233                   |
+| 0.20 | 6m14.963s                | 1.650307                   |
+| 0.25 | 7m2.071s                 | 1.981595                   |
+| 0.30 | 6m44.325s                | 2.000000                   |
+| 0.35 | 7m0.784s                 | 1.834356                   |
+| 0.40 | 6m30.701s                | 1.809816                   |
+| 0.45 | 8m42.994s                | 2.239264                   |
+| 0.50 | 8m57.999s                | 2.316564                   |
+|------|--------------------------|----------------------------|
+
+Note that the values may not be very accurate due to floating point errors and the time taken may vary with the system load and the network conditions.
